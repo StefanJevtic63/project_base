@@ -16,6 +16,38 @@
 
 #include <iostream>
 
+void gl_clear_error() {
+    while (glGetError() != GL_NO_ERROR) {}
+}
+const char* gl_error_to_string(GLenum error) {
+    switch(error) {
+        case GL_NO_ERROR: return "GL_NO_ERROR";
+        case GL_INVALID_ENUM: return "GL_INVALID_ENUM";
+        case GL_INVALID_VALUE: return "GL_INVALID_VALUE";
+        case GL_INVALID_OPERATION: return "GL_INVALID_OPERATION";
+        case GL_INVALID_FRAMEBUFFER_OPERATION: return "GL_INVALID_FRAMEBUFFER_OPERATION";
+        case GL_OUT_OF_MEMORY: return "GL_OUT_OF_MEMORY";
+        default: {
+            std::cerr << "NoSuch error\n";
+        }
+    }
+}
+
+bool gl_log_call(const char *file, int Line, const char* call) {
+    bool success = true;
+    while (GLenum error = glGetError()) {
+        std::cerr << "[OpenGL Error] " << error << '\n' << "Msg: " << gl_error_to_string(error) << '\n'
+                  << "File: " << file << '\n'
+                  << "Line: " << Line << '\n'
+                  << "Call: " << call << '\n';
+        success = false;
+    }
+    return success;
+}
+
+#define ASSERT(x) if(!(x)) __builtin_trap()
+#define GLCALL(x) { gl_clear_error(); x; ASSERT(gl_log_call(__FILE__, __LINE__, #x)); }
+
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 
 void mouse_callback(GLFWwindow *window, double xpos, double ypos);
@@ -323,7 +355,7 @@ void DrawImGui(ProgramState *programState) {
         ImGui::DragFloat3("Backpack position", (float*)&programState->backpackPosition);
         ImGui::DragFloat("Backpack scale", &programState->backpackScale, 0.05, 0.1, 3.0);
         ImGui::DragFloat3("Tree position", (float *) &programState->treePosition);
-        ImGui::DragFloat("Tree scale", &programState->treeScale, 0.05, 0.1, 10.0);
+        ImGui::DragFloat("Tree scale", &programState->treeScale, 0.05, 0.1, 6.0);
 
         ImGui::DragFloat("pointLight.constant", &programState->pointLight.constant, 0.05, 0.0, 1.0);
         ImGui::DragFloat("pointLight.linear", &programState->pointLight.linear, 0.05, 0.0, 1.0);
