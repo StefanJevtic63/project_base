@@ -16,38 +16,6 @@
 
 #include <iostream>
 
-void gl_clear_error() {
-    while (glGetError() != GL_NO_ERROR) {}
-}
-const char* gl_error_to_string(GLenum error) {
-    switch(error) {
-        case GL_NO_ERROR: return "GL_NO_ERROR";
-        case GL_INVALID_ENUM: return "GL_INVALID_ENUM";
-        case GL_INVALID_VALUE: return "GL_INVALID_VALUE";
-        case GL_INVALID_OPERATION: return "GL_INVALID_OPERATION";
-        case GL_INVALID_FRAMEBUFFER_OPERATION: return "GL_INVALID_FRAMEBUFFER_OPERATION";
-        case GL_OUT_OF_MEMORY: return "GL_OUT_OF_MEMORY";
-        default: {
-            std::cerr << "NoSuch error\n";
-        }
-    }
-}
-
-bool gl_log_call(const char *file, int Line, const char* call) {
-    bool success = true;
-    while (GLenum error = glGetError()) {
-        std::cerr << "[OpenGL Error] " << error << '\n' << "Msg: " << gl_error_to_string(error) << '\n'
-                  << "File: " << file << '\n'
-                  << "Line: " << Line << '\n'
-                  << "Call: " << call << '\n';
-        success = false;
-    }
-    return success;
-}
-
-#define ASSERT(x) if(!(x)) __builtin_trap()
-#define GLCALL(x) { gl_clear_error(); x; ASSERT(gl_log_call(__FILE__, __LINE__, #x)); }
-
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 
 void mouse_callback(GLFWwindow *window, double xpos, double ypos);
@@ -57,6 +25,8 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
+
+unsigned int loadTexture(const char *path);
 
 // settings
 const unsigned int SCR_WIDTH = 800;
@@ -88,10 +58,10 @@ struct ProgramState {
     bool ImGuiEnabled = false;
     Camera camera;
     bool CameraMouseMovementUpdateEnabled = true;
-    glm::vec3 backpackPosition = glm::vec3(0.0f);
-    float backpackScale = 1.0f;
-    glm::vec3 treePosition = glm::vec3(1.0f);
-    float treeScale = 1.0f;
+    //glm::vec3 backpackPosition = glm::vec3(0.0f);
+    //float backpackScale = 1.0f;
+    glm::vec3 treePosition = glm::vec3(0.0f);
+    float treeScale = 0.1f;
     PointLight pointLight;
     ProgramState()
             : camera(glm::vec3(0.0f, 0.0f, 3.0f)) {}
@@ -190,15 +160,72 @@ int main() {
     // configure global opengl state
     // -----------------------------
     glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_ALWAYS);
 
     // build and compile shaders
     // -------------------------
-    Shader ourShader("resources/shaders/2.model_lighting.vs", "resources/shaders/2.model_lighting.fs");
+    Shader ourShader("resources/shaders/6.multiple_lights.vs", "resources/shaders/6.multiple_lights.fs");
+
+    // set up vertex data (and buffer(s)) and configure vertex attributes
+    // ------------------------------------------------------------------
+    float floorVertices[] = {
+            // positions          // texture Coords (note we set these higher than 1 (together with GL_REPEAT as texture wrapping mode). this will cause the floor texture to repeat)
+            5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
+            -5.0f, -0.5f,  5.0f,  0.0f, 0.0f,
+            -5.0f, -0.5f, -5.0f,  0.0f, 2.0f,
+
+            5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
+            -5.0f, -0.5f, -5.0f,  0.0f, 2.0f,
+            5.0f, -0.5f, -5.0f,  2.0f, 2.0f
+    };
+
+//    unsigned int indices[] = {
+//            // Floor
+//            0, 1, 2,
+//            2, 3, 0,
+//            // Ceiling
+//            4, 5, 6,
+//            6, 7, 4,
+//            // Left wall
+//            4, 0, 3,
+//            3, 7, 4,
+//            // Right wall
+//            1, 5, 6,
+//            6, 2, 1,
+//            // Front wall
+//            1, 0, 4,
+//            4, 5, 1,
+//            // Back wall
+//            3, 2, 6,
+//            6, 7, 3,
+//    };
+
+    //floor VAO
+    unsigned int floorVAO, floorVBO;
+    glGenVertexArrays(1, &floorVAO);
+    glGenBuffers(1, &floorVBO);
+    glBindVertexArray(floorVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, floorVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(floorVertices), &floorVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glBindVertexArray(0);
+
+    //load textures
+    //-------------
+    unsigned int floorTexture = loadTexture(FileSystem::getPath("resources/textures/wood.png").c_str());
+
+    //shader configuration
+    //--------------------
+    ourShader.use();
+    ourShader.setInt("texture1", 0);
 
     // load models
     // -----------
-    Model ourModel("resources/objects/backpack/backpack.obj");
-    ourModel.SetShaderTextureNamePrefix("material.");
+    //Model ourModel("resources/objects/backpack/backpack.obj");
+    //ourModel.SetShaderTextureNamePrefix("material.");
 
     Model treeModel("resources/objects/christmas_tree/12150_Christmas_Tree_V2_L2.obj");
     treeModel.SetShaderTextureNamePrefix("material.");
@@ -237,6 +264,7 @@ int main() {
 
         // don't forget to enable shader before setting uniforms
         ourShader.use();
+
         pointLight.position = glm::vec3(4.0 * cos(currentFrame), 4.0f, 4.0 * sin(currentFrame));
         ourShader.setVec3("pointLights[0].position", pointLight.position);
         ourShader.setVec3("pointLights[0].ambient", pointLight.ambient);
@@ -258,22 +286,34 @@ int main() {
         ourShader.setMat4("projection", projection);
         ourShader.setMat4("view", view);
 
-        // render the loaded models
+        //render the loaded models
         glm::mat4 model = glm::mat4(1.0f);
+
+        /*
         model = glm::translate(model,
                                programState->backpackPosition); // translate it down so it's at the center of the scene
         model = glm::scale(model, glm::vec3(programState->backpackScale));    // it's a bit too big for our scene, so scale it down
         ourShader.setMat4("model", model);
         ourModel.Draw(ourShader);
+         */
 
-        model = glm::mat4(1.f);
+        //tree
+        model = glm::mat4(1.0f);
         model = glm::translate(model, programState->treePosition);
         model = glm::scale(model, glm::vec3(programState->treeScale));
+        model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0,0.0,1.0));
         ourShader.setMat4("model", model);
         treeModel.Draw(ourShader);
 
         if (programState->ImGuiEnabled)
             DrawImGui(programState);
+
+        //floor
+        glBindVertexArray(floorVAO);
+        glBindTexture(GL_TEXTURE_2D, floorTexture);
+        ourShader.setMat4("model", glm::mat4(1.0f));
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindVertexArray(0);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -287,7 +327,10 @@ int main() {
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
     // glfw: terminate, clearing all previously allocated GLFW resources.
-    // ------------------------------------------------------------------
+    // -----------------------------------------------------------------
+    glDeleteVertexArrays(1, &floorVAO);
+    glDeleteBuffers(1, &floorVBO);
+
     glfwTerminate();
     return 0;
 }
@@ -352,8 +395,8 @@ void DrawImGui(ProgramState *programState) {
         ImGui::Text("Hello text");
         ImGui::SliderFloat("Float slider", &f, 0.0, 1.0);
         ImGui::ColorEdit3("Background color", (float *) &programState->clearColor);
-        ImGui::DragFloat3("Backpack position", (float*)&programState->backpackPosition);
-        ImGui::DragFloat("Backpack scale", &programState->backpackScale, 0.05, 0.1, 3.0);
+        //ImGui::DragFloat3("Backpack position", (float*)&programState->backpackPosition);
+        //ImGui::DragFloat("Backpack scale", &programState->backpackScale, 0.05, 0.1, 3.0);
         ImGui::DragFloat3("Tree position", (float *) &programState->treePosition);
         ImGui::DragFloat("Tree scale", &programState->treeScale, 0.05, 0.1, 6.0);
 
@@ -387,4 +430,43 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         }
     }
+}
+
+// utility function for loading a 2D texture from file
+// ---------------------------------------------------
+unsigned int loadTexture(char const *path)
+{
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+
+    int width, height, nrComponents;
+    unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
+    if (data)
+    {
+        GLenum format;
+        if (nrComponents == 1)
+            format = GL_RED;
+        else if (nrComponents == 3)
+            format = GL_RGB;
+        else if (nrComponents == 4)
+            format = GL_RGBA;
+
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        stbi_image_free(data);
+    }
+    else
+    {
+        std::cout << "Texture failed to load at path: " << path << std::endl;
+        stbi_image_free(data);
+    }
+
+    return textureID;
 }
