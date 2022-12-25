@@ -58,10 +58,8 @@ struct ProgramState {
     bool ImGuiEnabled = false;
     Camera camera;
     bool CameraMouseMovementUpdateEnabled = true;
-    //glm::vec3 backpackPosition = glm::vec3(0.0f);
-    //float backpackScale = 1.0f;
     glm::vec3 treePosition = glm::vec3(0.0f);
-    float treeScale = 0.1f;
+    float treeScale = 0.03f;
     PointLight pointLight;
     ProgramState()
             : camera(glm::vec3(0.0f, 0.0f, 3.0f)) {}
@@ -160,7 +158,7 @@ int main() {
     // configure global opengl state
     // -----------------------------
     glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_ALWAYS);
+    glDepthFunc(GL_LESS);
 
     // build and compile shaders
     // -------------------------
@@ -169,7 +167,7 @@ int main() {
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
     float floorVertices[] = {
-            // positions          // texture Coords (note we set these higher than 1 (together with GL_REPEAT as texture wrapping mode). this will cause the floor texture to repeat)
+            // positions                     // texture Coords (note we set these higher than 1 (together with GL_REPEAT as texture wrapping mode). this will cause the floor texture to repeat)
             5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
             -5.0f, -0.5f,  5.0f,  0.0f, 0.0f,
             -5.0f, -0.5f, -5.0f,  0.0f, 2.0f,
@@ -178,27 +176,6 @@ int main() {
             -5.0f, -0.5f, -5.0f,  0.0f, 2.0f,
             5.0f, -0.5f, -5.0f,  2.0f, 2.0f
     };
-
-//    unsigned int indices[] = {
-//            // Floor
-//            0, 1, 2,
-//            2, 3, 0,
-//            // Ceiling
-//            4, 5, 6,
-//            6, 7, 4,
-//            // Left wall
-//            4, 0, 3,
-//            3, 7, 4,
-//            // Right wall
-//            1, 5, 6,
-//            6, 2, 1,
-//            // Front wall
-//            1, 0, 4,
-//            4, 5, 1,
-//            // Back wall
-//            3, 2, 6,
-//            6, 7, 3,
-//    };
 
     //floor VAO
     unsigned int floorVAO, floorVBO;
@@ -224,8 +201,6 @@ int main() {
 
     // load models
     // -----------
-    //Model ourModel("resources/objects/backpack/backpack.obj");
-    //ourModel.SetShaderTextureNamePrefix("material.");
 
     Model treeModel("resources/objects/christmas_tree/12150_Christmas_Tree_V2_L2.obj");
     treeModel.SetShaderTextureNamePrefix("material.");
@@ -287,21 +262,12 @@ int main() {
         ourShader.setMat4("view", view);
 
         //render the loaded models
-        glm::mat4 model = glm::mat4(1.0f);
-
-        /*
-        model = glm::translate(model,
-                               programState->backpackPosition); // translate it down so it's at the center of the scene
-        model = glm::scale(model, glm::vec3(programState->backpackScale));    // it's a bit too big for our scene, so scale it down
-        ourShader.setMat4("model", model);
-        ourModel.Draw(ourShader);
-         */
 
         //tree
-        model = glm::mat4(1.0f);
+        glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, programState->treePosition);
         model = glm::scale(model, glm::vec3(programState->treeScale));
-        model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0,0.0,1.0));
+        model = glm::rotate(model, glm::radians(270.0f), glm::vec3(1.0,0.0,0.0));
         ourShader.setMat4("model", model);
         treeModel.Draw(ourShader);
 
@@ -349,6 +315,15 @@ void processInput(GLFWwindow *window) {
         programState->camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         programState->camera.ProcessKeyboard(RIGHT, deltaTime);
+    /*
+    if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS && !blinnKeyPressed) {
+        blinn = !blinn;
+        blinnKeyPressed = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_B) == GLFW_RELEASE) {
+        blinnKeyPressed = false;
+    }
+     */
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -395,10 +370,8 @@ void DrawImGui(ProgramState *programState) {
         ImGui::Text("Hello text");
         ImGui::SliderFloat("Float slider", &f, 0.0, 1.0);
         ImGui::ColorEdit3("Background color", (float *) &programState->clearColor);
-        //ImGui::DragFloat3("Backpack position", (float*)&programState->backpackPosition);
-        //ImGui::DragFloat("Backpack scale", &programState->backpackScale, 0.05, 0.1, 3.0);
         ImGui::DragFloat3("Tree position", (float *) &programState->treePosition);
-        ImGui::DragFloat("Tree scale", &programState->treeScale, 0.05, 0.1, 6.0);
+        ImGui::DragFloat("Tree scale", &programState->treeScale, 0.05, 0.01, 0.1);
 
         ImGui::DragFloat("pointLight.constant", &programState->pointLight.constant, 0.05, 0.0, 1.0);
         ImGui::DragFloat("pointLight.linear", &programState->pointLight.linear, 0.05, 0.0, 1.0);
