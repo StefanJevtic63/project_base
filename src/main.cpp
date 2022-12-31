@@ -28,6 +28,8 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
 unsigned int loadTexture(const char *path);
 
+void calculateLightColor(unsigned int i, glm::vec3 *lightColor);
+
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
@@ -60,6 +62,8 @@ struct ProgramState {
     bool CameraMouseMovementUpdateEnabled = true;
     glm::vec3 treePosition = glm::vec3(0.0f);
     float treeScale = 0.03;
+    glm::vec3 planePosition = glm::vec3(0.0f, 5.0f, 0.0f);
+    float planeScale = 10.0;
     PointLight pointLight;
     ProgramState()
             : camera(glm::vec3(0.0f, 0.0f, 3.0f)) {}
@@ -170,48 +174,48 @@ int main() {
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
     float vertices[] = {
-        // positions                       // normals                       // texture coords
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
-        0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  0.0f,
-        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
-        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
+            // positions                       // normals                       // texture coords
+            -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
+            0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  0.0f,
+            0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
+            0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
+            -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  1.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
 
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
-        0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  0.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
+            -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
+            0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  0.0f,
+            0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
+            0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
+            -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  1.0f,
+            -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
 
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
-        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
-        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+            -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+            -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
+            -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+            -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+            -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+            -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
 
-        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
-        0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
-        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
-        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
-        0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
-        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+            0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+            0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
+            0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+            0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+            0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+            0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
 
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
-        0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  1.0f,
-        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
-        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
+            0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  1.0f,
+            0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
+            0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
+            -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  0.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
 
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f,
-        0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  1.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f
+            -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f,
+            0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  1.0f,
+            0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
+            0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
+            -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  0.0f,
+            -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f
     };
     float planeVertices[] = {
             // positions                       // normals                       // texcoords
@@ -225,11 +229,27 @@ int main() {
     };
     // positions of the point lights
     glm::vec3 pointLightPositions[] = {
-        glm::vec3( 0.7f,  0.2f,  2.0f),
-        glm::vec3( 2.3f, -3.3f, -4.0f),
-        glm::vec3(-4.0f,  2.0f, -12.0f),
-        glm::vec3( 0.0f,  0.0f, -3.0f)
+            glm::vec3( -2.0f,  1.0f,  2.0f),
+            glm::vec3( 2.0f, 1.0f, -2.0f),
+            glm::vec3(2.0f,  1.0f, 2.0f),
+            glm::vec3( -2.0f,  1.0f, -2.0f)
     };
+
+    // plane VAO
+    unsigned int planeVAO, planeVBO;
+    glGenVertexArrays(1, &planeVAO);
+    glGenBuffers(1, &planeVBO);
+    glBindVertexArray(planeVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), planeVertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    //glBindVertexArray(0);
+
     // first, configure the cube's VAO (and VBO)
     unsigned int VBO, cubeVAO;
     glGenVertexArrays(1, &cubeVAO);
@@ -256,21 +276,6 @@ int main() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
-    // plane VAO
-    unsigned int planeVAO, planeVBO;
-    glGenVertexArrays(1, &planeVAO);
-    glGenBuffers(1, &planeVBO);
-    glBindVertexArray(planeVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), planeVertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-    glEnableVertexAttribArray(2);
-    //glBindVertexArray(0);
-
     //load textures
     //-------------
     unsigned int floorTexture = loadTexture(FileSystem::getPath("resources/textures/wood.png").c_str());
@@ -285,6 +290,8 @@ int main() {
 
     Model treeModel("resources/objects/christmas_tree/12150_Christmas_Tree_V2_L2.obj");
     treeModel.SetShaderTextureNamePrefix("material.");
+
+    glm::vec3 lightColor;
 
     // draw in wireframe
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -307,6 +314,21 @@ int main() {
         glClearColor(programState->clearColor.r, programState->clearColor.g, programState->clearColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        //make the light cubes circle around the Christmas tree
+        glm::vec3 lightPositions[4];
+        for(unsigned int i = 0; i < 4; i++) {
+
+            int k = 1;
+            if(i < 2)
+                k = -1;
+
+            float lightPosX = pointLightPositions[i].x * (float) sin(k * glfwGetTime() + i * 0.5);
+            float lightPosY = pointLightPositions[i].y;
+            float lightPosZ = pointLightPositions[i].z * (float) cos(k * glfwGetTime() + i * 0.5);
+            glm::vec3 lightPos = glm::vec3(lightPosX, lightPosY, lightPosZ);
+            lightPositions[i] = lightPos;
+        }
+
         // be sure to activate shader when setting uniforms/drawing objects
         ourShader.use();
         ourShader.setVec3("viewPos", programState->camera.Position);
@@ -324,7 +346,7 @@ int main() {
         ourShader.setVec3("dirLight.diffuse", 0.4f, 0.4f, 0.4f);
         ourShader.setVec3("dirLight.specular", 0.5f, 0.5f, 0.5f);
         // point light 1
-        ourShader.setVec3("pointLights[0].position", pointLightPositions[0]);
+        ourShader.setVec3("pointLights[0].position", lightPositions[0]);
         ourShader.setVec3("pointLights[0].ambient", 0.05f, 0.05f, 0.05f);
         ourShader.setVec3("pointLights[0].diffuse", 0.8f, 0.8f, 0.8f);
         ourShader.setVec3("pointLights[0].specular", 1.0f, 1.0f, 1.0f);
@@ -332,7 +354,7 @@ int main() {
         ourShader.setFloat("pointLights[0].linear", 0.09f);
         ourShader.setFloat("pointLights[0].quadratic", 0.032f);
         // point light 2
-        ourShader.setVec3("pointLights[1].position", pointLightPositions[1]);
+        ourShader.setVec3("pointLights[1].position", lightPositions[1]);
         ourShader.setVec3("pointLights[1].ambient", 0.05f, 0.05f, 0.05f);
         ourShader.setVec3("pointLights[1].diffuse", 0.8f, 0.8f, 0.8f);
         ourShader.setVec3("pointLights[1].specular", 1.0f, 1.0f, 1.0f);
@@ -340,7 +362,7 @@ int main() {
         ourShader.setFloat("pointLights[1].linear", 0.09f);
         ourShader.setFloat("pointLights[1].quadratic", 0.032f);
         // point light 3
-        ourShader.setVec3("pointLights[2].position", pointLightPositions[2]);
+        ourShader.setVec3("pointLights[2].position", lightPositions[2]);
         ourShader.setVec3("pointLights[2].ambient", 0.05f, 0.05f, 0.05f);
         ourShader.setVec3("pointLights[2].diffuse", 0.8f, 0.8f, 0.8f);
         ourShader.setVec3("pointLights[2].specular", 1.0f, 1.0f, 1.0f);
@@ -348,7 +370,7 @@ int main() {
         ourShader.setFloat("pointLights[2].linear", 0.09f);
         ourShader.setFloat("pointLights[2].quadratic", 0.032f);
         // point light 4
-        ourShader.setVec3("pointLights[3].position", pointLightPositions[3]);
+        ourShader.setVec3("pointLights[3].position", lightPositions[3]);
         ourShader.setVec3("pointLights[3].ambient", 0.05f, 0.05f, 0.05f);
         ourShader.setVec3("pointLights[3].diffuse", 0.8f, 0.8f, 0.8f);
         ourShader.setVec3("pointLights[3].specular", 1.0f, 1.0f, 1.0f);
@@ -374,9 +396,28 @@ int main() {
         ourShader.setMat4("projection", projection);
         ourShader.setMat4("view", view);
 
-        // world transformation
+        //render the loaded models
+        //tree
         glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, programState->treePosition);
+        model = glm::scale(model, glm::vec3(programState->treeScale));
+        model = glm::rotate(model, glm::radians(270.0f), glm::vec3(1.0,0.0,0.0));
         ourShader.setMat4("model", model);
+        treeModel.Draw(ourShader);
+
+        //plane
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, programState->planePosition);
+        model = glm::scale(model, glm::vec3(programState->planeScale));
+        ourShader.setMat4("model", model);
+        glBindVertexArray(planeVAO);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, floorTexture);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+
+        if (programState->ImGuiEnabled)
+            DrawImGui(programState);
 
         // also draw the lamp object(s)
         lightCubeShader.use();
@@ -384,34 +425,20 @@ int main() {
         lightCubeShader.setMat4("view", view);
 
         // we now draw as many light bulbs as we have point lights.
+        //lightCubeShader.setVec3("lightColor", lightColor);
         glBindVertexArray(lightCubeVAO);
-        for (unsigned int i = 0; i < 4; i++)
+        for (unsigned int i=0; i<4; i++)
         {
+            calculateLightColor(i, &lightColor);
+            lightCubeShader.setVec3("lightColor", lightColor);
+
             model = glm::mat4(1.0f);
-            model = glm::translate(model, pointLightPositions[i]);
+            model = glm::translate(model, lightPositions[i]);
             model = glm::scale(model, glm::vec3(0.2f)); // Make it a smaller cube
+
             lightCubeShader.setMat4("model", model);
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
-
-        //render the loaded models
-
-        //tree
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, programState->treePosition);
-        model = glm::scale(model, glm::vec3(programState->treeScale));
-        model = glm::rotate(model, glm::radians(270.0f), glm::vec3(1.0,0.0,0.0));
-        ourShader.setMat4("model", model);
-        treeModel.Draw(ourShader);
-
-        if (programState->ImGuiEnabled)
-            DrawImGui(programState);
-
-        //plane
-        glBindVertexArray(planeVAO);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, floorTexture);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -493,7 +520,6 @@ void DrawImGui(ProgramState *programState) {
     {
         static float f = 0.0f;
         ImGui::Begin("Hello window");
-        ImGui::Text("Hello text");
         ImGui::SliderFloat("Float slider", &f, 0.0, 1.0);
         ImGui::ColorEdit3("Background color", (float *) &programState->clearColor);
         ImGui::DragFloat3("Tree position", (float *) &programState->treePosition);
@@ -568,4 +594,27 @@ unsigned int loadTexture(char const *path)
     }
 
     return textureID;
+}
+
+void calculateLightColor(unsigned int i, glm::vec3 *lightColor) {
+    if(i == 0) {
+        lightColor->r = (float) sin(glfwGetTime() * 3.8);
+        lightColor->g = (float) sin(glfwGetTime() * 4.6);
+        lightColor->b = (float) sin(glfwGetTime() * 5.1);
+    }
+    else if(i == 1) {
+        lightColor->r = (float) sin(glfwGetTime() * 4.6);
+        lightColor->g = (float) sin(glfwGetTime() * 5.2);
+        lightColor->b = (float) sin(glfwGetTime() * 3.9);
+    }
+    else if(i == 2) {
+        lightColor->r = (float) sin(glfwGetTime() * 5.0);
+        lightColor->g = (float) sin(glfwGetTime() * 3.8);
+        lightColor->b = (float) sin(glfwGetTime() * 4.6);
+    }
+    else {
+        lightColor->r = (float) sin(glfwGetTime() * 3.2);
+        lightColor->g = (float) sin(glfwGetTime() * 4.5);
+        lightColor->b = (float) sin(glfwGetTime() * 4.9);
+    }
 }
