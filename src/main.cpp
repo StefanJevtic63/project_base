@@ -167,6 +167,9 @@ int main() {
     glDepthFunc(GL_LESS);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    //glFrontFace(GL_CCW);
 
     // build and compile shaders
     // -------------------------
@@ -469,14 +472,17 @@ int main() {
 
         //render the loaded models
         //tree
+        glDisable(GL_CULL_FACE);
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, programState->treePosition);
         model = glm::scale(model, glm::vec3(programState->treeScale));
         model = glm::rotate(model, glm::radians(270.0f), glm::vec3(1.0,0.0,0.0));
         ourShader.setMat4("model", model);
         treeModel.Draw(ourShader);
+        glEnable(GL_CULL_FACE);
 
         //plane
+        glDisable(GL_CULL_FACE);
         model = glm::mat4(1.0f);
         model = glm::translate(model, programState->planePosition);
         model = glm::scale(model, glm::vec3(programState->planeScale));
@@ -485,18 +491,19 @@ int main() {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, floorTexture);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+        glEnable(GL_CULL_FACE);
 
 
         if (programState->ImGuiEnabled)
             DrawImGui(programState);
 
         // also draw the lamp object(s)
+        glCullFace(GL_BACK);
         lightCubeShader.use();
         lightCubeShader.setMat4("projection", projection);
         lightCubeShader.setMat4("view", view);
 
         // we now draw as many light bulbs as we have point lights.
-        //lightCubeShader.setVec3("lightColor", lightColor);
         glBindVertexArray(lightCubeVAO);
         for (unsigned int i=0; i<4; i++)
         {
@@ -512,6 +519,7 @@ int main() {
         }
 
         // draw skybox as last
+        glDisable(GL_CULL_FACE);
         glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
         skyboxShader.use();
         view = glm::mat4(glm::mat3(programState->camera.GetViewMatrix())); // remove translation from the view matrix
@@ -524,6 +532,7 @@ int main() {
         glDrawArrays(GL_TRIANGLES, 0, 36);
         glBindVertexArray(0);
         glDepthFunc(GL_LESS); // set depth function back to default
+        glEnable(GL_CULL_FACE);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
