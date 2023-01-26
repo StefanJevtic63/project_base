@@ -32,9 +32,7 @@ void calculateLightColor(unsigned int i, glm::vec3 *lightColor);
 
 unsigned int loadCubemap(vector<std::string> faces);
 
-void renderCube();
-
-void renderPlane();
+void renderQuad();
 
 // settings
 const unsigned int SCR_WIDTH = 800;
@@ -80,7 +78,6 @@ struct ProgramState {
     float treeScale = 0.03;
     float planeScale = 10.0;
     float windowScale = 3.0f;
-    unsigned int floorTexture;
 
     PointLight pointLight;
     ProgramState()
@@ -183,6 +180,140 @@ int main() {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330 core");
 
+    // set up vertex data (and buffer(s)) and configure vertex attributes
+    // ------------------------------------------------------------------
+    float skyboxVertices[] = {
+        // positions
+        -1.0f,  1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+
+        -1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f,
+
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+
+        -1.0f, -1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f,
+
+        -1.0f,  1.0f, -1.0f,
+        1.0f,  1.0f, -1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f, -1.0f,
+
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f,  1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f,  1.0f,
+        1.0f, -1.0f,  1.0f
+    };
+
+    //cubeVertices array has been copied from the project "rgLabyrinthHunt" of a colleague Ivan Basarab
+    //link to their project: https://github.com/matf-racunarska-grafika-galerija/rgLabyrinthHunt/blob/main/src/main.cpp
+
+    //Start of copied code-------------
+    float cubeVertices[] = {
+        // positions                     // normals                        // texture coords
+
+        // FRONT FACE
+        0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
+        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
+        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  1.0f,
+
+        // BACK FACE
+        0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
+        0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  0.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
+
+        // LEFT FACE
+        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+
+        // RIGHT FACE
+        0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
+        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+        0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+
+        // BOTTOM FACE
+        0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  1.0f,
+        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
+        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
+
+        // TOP FACE
+        0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  1.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  0.0f
+    };
+    //--------------End of copied code
+
+    float planeVertices[] = {
+        // positions                     // normals                       // texcoords
+        1.0f, -0.5f,  1.0f,  0.0f, 1.0f, 0.0f,      1.0f,  0.0f,
+        -1.0f, -0.5f,  1.0f,  0.0f, 1.0f, 0.0f,   0.0f,  0.0f,
+        -1.0f, -0.5f, -1.0f,  0.0f, 1.0f, 0.0f,   0.0f, 1.0f,
+
+        1.0f, -0.5f,  1.0f,  0.0f, 1.0f, 0.0f,  1.0f,  0.0f,
+        -1.0f, -0.5f, -1.0f,  0.0f, 1.0f, 0.0f,   0.0f, 1.0f,
+        1.0f, -0.5f, -1.0f,  0.0f, 1.0f, 0.0f,  1.0f, 1.0f
+    };
+
+    float transparentVertices[] = {
+        // positions         // texture Coords (swapped y coordinates because texture is flipped upside down)
+        0.0f,  0.5f,  0.0f,  0.0f,  0.0f,
+        0.0f, -0.5f,  0.0f,  0.0f,  1.0f,
+        1.0f, -0.5f,  0.0f,  1.0f,  1.0f,
+
+        0.0f,  0.5f,  0.0f,  0.0f,  0.0f,
+        1.0f, -0.5f,  0.0f,  1.0f,  1.0f,
+        1.0f,  0.5f,  0.0f,  1.0f,  0.0f
+    };
+
+    // positions of the point lights
+    glm::vec3 pointLightPositions[] = {
+        glm::vec3( -2.0f,  1.0f,  2.0f),
+        glm::vec3( 2.0f, 1.0f, -2.0f),
+        glm::vec3(2.0f,  1.0f, 2.0f),
+        glm::vec3( -2.0f,  1.0f, -2.0f)
+    };
+
     // configure global opengl state
     // -----------------------------
     glEnable(GL_DEPTH_TEST);
@@ -200,63 +331,32 @@ int main() {
     Shader bloom_finalShader("resources/shaders/bloom_final.vs", "resources/shaders/bloom_final.fs");
     Shader skyboxShader("resources/shaders/skybox.vs", "resources/shaders/skybox.fs");
 
-    // set up vertex data (and buffer(s)) and configure vertex attributes
-    // ------------------------------------------------------------------
-    float skyboxVertices[] = {
-            // positions
-            -1.0f,  1.0f, -1.0f,
-            -1.0f, -1.0f, -1.0f,
-            1.0f, -1.0f, -1.0f,
-            1.0f, -1.0f, -1.0f,
-            1.0f,  1.0f, -1.0f,
-            -1.0f,  1.0f, -1.0f,
+    // load models
+    // -----------
+    Model treeModel("resources/objects/christmas_tree/12150_Christmas_Tree_V2_L2.obj");
+    treeModel.SetShaderTextureNamePrefix("material.");
 
-            -1.0f, -1.0f,  1.0f,
-            -1.0f, -1.0f, -1.0f,
-            -1.0f,  1.0f, -1.0f,
-            -1.0f,  1.0f, -1.0f,
-            -1.0f,  1.0f,  1.0f,
-            -1.0f, -1.0f,  1.0f,
+    Model roomModel("resources/objects/room/soba.obj");
+    roomModel.SetShaderTextureNamePrefix("material.");
 
-            1.0f, -1.0f, -1.0f,
-            1.0f, -1.0f,  1.0f,
-            1.0f,  1.0f,  1.0f,
-            1.0f,  1.0f,  1.0f,
-            1.0f,  1.0f, -1.0f,
-            1.0f, -1.0f, -1.0f,
-
-            -1.0f, -1.0f,  1.0f,
-            -1.0f,  1.0f,  1.0f,
-            1.0f,  1.0f,  1.0f,
-            1.0f,  1.0f,  1.0f,
-            1.0f, -1.0f,  1.0f,
-            -1.0f, -1.0f,  1.0f,
-
-            -1.0f,  1.0f, -1.0f,
-            1.0f,  1.0f, -1.0f,
-            1.0f,  1.0f,  1.0f,
-            1.0f,  1.0f,  1.0f,
-            -1.0f,  1.0f,  1.0f,
-            -1.0f,  1.0f, -1.0f,
-
-            -1.0f, -1.0f, -1.0f,
-            -1.0f, -1.0f,  1.0f,
-            1.0f, -1.0f, -1.0f,
-            1.0f, -1.0f, -1.0f,
-            -1.0f, -1.0f,  1.0f,
-            1.0f, -1.0f,  1.0f
+    //load textures
+    //------------------
+    vector<std::string> faces {
+            FileSystem::getPath("resources/textures/skybox/right.jpg"),
+            FileSystem::getPath("resources/textures/skybox/left.jpg"),
+            FileSystem::getPath("resources/textures/skybox/top.jpg"),
+            FileSystem::getPath("resources/textures/skybox/bottom.jpg"),
+            FileSystem::getPath("resources/textures/skybox/front.jpg"),
+            FileSystem::getPath("resources/textures/skybox/back.jpg")
     };
 
-    float transparentVertices[] = {
-            // positions         // texture Coords (swapped y coordinates because texture is flipped upside down)
-            0.0f,  0.5f,  0.0f,  0.0f,  0.0f,
-            0.0f, -0.5f,  0.0f,  0.0f,  1.0f,
-            1.0f, -0.5f,  0.0f,  1.0f,  1.0f,
+    unsigned int cubemapTexture = loadCubemap(faces);
 
-            0.0f,  0.5f,  0.0f,  0.0f,  0.0f,
-            1.0f, -0.5f,  0.0f,  1.0f,  1.0f,
-            1.0f,  0.5f,  0.0f,  1.0f,  0.0f
-    };
+    skyboxShader.use();
+    skyboxShader.setInt("skybox", 0);
+
+    unsigned int floorTexture = loadTexture(FileSystem::getPath("resources/textures/wood.png").c_str(), true);  // note that we're loading the texture as an SRGB texture
+    unsigned int transparentTexture = loadTexture(FileSystem::getPath("resources/textures/window.png").c_str(), true); // note that we're loading the texture as an SRGB texture
 
     // configure floating point framebuffer
     // ------------------------------------
@@ -296,7 +396,8 @@ int main() {
     unsigned int pingpongColorbuffers[2];
     glGenFramebuffers(2, pingpongFBO);
     glGenTextures(2, pingpongColorbuffers);
-    for (unsigned int i = 0; i < 2; i++) {
+    for (unsigned int i = 0; i < 2; i++)
+    {
         glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[i]);
         glBindTexture(GL_TEXTURE_2D, pingpongColorbuffers[i]);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
@@ -322,15 +423,52 @@ int main() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-    glBindVertexArray(0);
+    //glBindVertexArray(0);
 
-    // positions of the point lights
-    glm::vec3 pointLightPositions[] = {
-            glm::vec3( -2.0f,  1.0f,  2.0f),
-            glm::vec3( 2.0f, 1.0f, -2.0f),
-            glm::vec3(2.0f,  1.0f, 2.0f),
-            glm::vec3( -2.0f,  1.0f, -2.0f)
-    };
+    // plane VAO
+    unsigned int planeVAO, planeVBO;
+    glGenVertexArrays(1, &planeVAO);
+    glGenBuffers(1, &planeVBO);
+    glBindVertexArray(planeVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), planeVertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    //glBindVertexArray(0);
+
+    //configure the cube's VAO (and VBO)
+    glFrontFace(GL_CW);
+
+    unsigned int cubeVBO, cubeVAO;
+    glGenVertexArrays(1, &cubeVAO);
+    glGenBuffers(1, &cubeVBO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
+
+    glBindVertexArray(cubeVAO);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+
+    // second, configure the light's VAO (VBO stays the same; the cubeVertices are the same for the light object which is also a 3D cube)
+    unsigned int lightCubeVAO;
+    glGenVertexArrays(1, &lightCubeVAO);
+    glBindVertexArray(lightCubeVAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
+    // note that we update the lamp's position attribute's stride to reflect the updated buffer data
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    //glBindVertexArray(0);
 
     // skybox VAO
     unsigned int skyboxVAO, skyboxVBO;
@@ -341,21 +479,6 @@ int main() {
     glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-
-    //load textures
-    //-------------
-    programState->floorTexture = loadTexture(FileSystem::getPath("resources/textures/wood.png").c_str(), true);  // note that we're loading the texture as an SRGB texture
-    unsigned int transparentTexture = loadTexture(FileSystem::getPath("resources/textures/window.png").c_str(), true); // note that we're loading the texture as an SRGB texture
-
-    vector<std::string> faces {
-            FileSystem::getPath("resources/textures/skybox/right.jpg"),
-            FileSystem::getPath("resources/textures/skybox/left.jpg"),
-            FileSystem::getPath("resources/textures/skybox/top.jpg"),
-            FileSystem::getPath("resources/textures/skybox/bottom.jpg"),
-            FileSystem::getPath("resources/textures/skybox/front.jpg"),
-            FileSystem::getPath("resources/textures/skybox/back.jpg")
-    };
-    unsigned int cubemapTexture = loadCubemap(faces);
 
     //shader configuration
     //--------------------
@@ -371,18 +494,6 @@ int main() {
     bloom_finalShader.use();
     bloom_finalShader.setInt("scene", 0);
     bloom_finalShader.setInt("bloomBlur", 1);
-
-    skyboxShader.use();
-    skyboxShader.setInt("skybox", 0);
-
-    // load models
-    // -----------
-
-    Model treeModel("resources/objects/christmas_tree/12150_Christmas_Tree_V2_L2.obj");
-    treeModel.SetShaderTextureNamePrefix("material.");
-
-    Model roomModel("resources/objects/room/soba.obj");
-    roomModel.SetShaderTextureNamePrefix("material.");
 
     glm::vec3 lightColor;
 
@@ -409,6 +520,10 @@ int main() {
         // -----------------------------------------------
         glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        glm::mat4 model = glm::mat4(1.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(programState->camera.Zoom),(float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 view = programState->camera.GetViewMatrix();
 
         //make the light cubes circle around the Christmas tree
         glm::vec3 lightPositions[4];
@@ -480,18 +595,13 @@ int main() {
         ourShader.setFloat("spotLight.outerCutOff", glm::cos(glm::radians(15.0f)));
 
         // view/projection transformations
-        glm::mat4 projection = glm::perspective(glm::radians(programState->camera.Zoom),
-                                                (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
-        glm::mat4 view = programState->camera.GetViewMatrix();
+        view = programState->camera.GetViewMatrix();
         ourShader.setMat4("projection", projection);
         ourShader.setMat4("view", view);
 
-        if (programState->ImGuiEnabled)
-            DrawImGui(programState);
-
         //render the loaded models
         //room
-        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::mat4(1.0f);
         model = glm::translate(model, programState->roomPosition);
         model = glm::scale(model, glm::vec3(programState->roomScale));
         ourShader.setMat4("model", model);
@@ -510,9 +620,12 @@ int main() {
         model = glm::translate(model, programState->planePosition);
         model = glm::scale(model, glm::vec3(programState->planeScale));
         ourShader.setMat4("model", model);
-        renderPlane();
+        glBindVertexArray(planeVAO);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, floorTexture);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
 
-        //window
+        //windows
         blendingShader.use();
         blendingShader.setMat4("projection", projection);
         blendingShader.setMat4("view", view);
@@ -531,8 +644,9 @@ int main() {
         }
 
         // also draw the lamp object(s)
-        glEnable(GL_CULL_FACE);
         lightCubeShader.use();
+        glEnable(GL_CULL_FACE);
+
         lightCubeShader.setMat4("projection", projection);
         lightCubeShader.setMat4("view", view);
 
@@ -547,10 +661,9 @@ int main() {
             model = glm::scale(model, glm::vec3(0.2f)); // Make it a smaller cube
 
             lightCubeShader.setMat4("model", model);
-            renderCube();
+            glDrawArrays(GL_TRIANGLES, 0, 36);
         }
         glDisable(GL_CULL_FACE);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // draw skybox as last
         glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
@@ -558,6 +671,7 @@ int main() {
         view = glm::mat4(glm::mat3(programState->camera.GetViewMatrix())); // remove translation from the view matrix
         skyboxShader.setMat4("view", view);
         skyboxShader.setMat4("projection", projection);
+
         // skybox cube
         glBindVertexArray(skyboxVAO);
         glActiveTexture(GL_TEXTURE0);
@@ -566,7 +680,7 @@ int main() {
         glBindVertexArray(0);
         glDepthFunc(GL_LESS); // set depth function back to default
 
-        ourShader.setVec3("viewPos", programState->camera.Position);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // 2. blur bright fragments with two-pass Gaussian Blur
         // --------------------------------------------------
@@ -578,11 +692,11 @@ int main() {
             glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]);
             blurShader.setInt("horizontal", horizontal);
             glBindTexture(GL_TEXTURE_2D, first_iteration ? colorBuffers[1] : pingpongColorbuffers[!horizontal]);  // bind texture of other framebuffer (or scene if first iteration)
-            renderPlane();
+            renderQuad();
             horizontal = !horizontal;
             if (first_iteration)
                 first_iteration = false;
-        }
+            }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // 3. now render floating point color buffer to 2D plane and tonemap HDR colors to default framebuffer's (clamped) color range
@@ -595,11 +709,14 @@ int main() {
         glBindTexture(GL_TEXTURE_2D, pingpongColorbuffers[!horizontal]);
         bloom_finalShader.setInt("bloom", bloom);
         bloom_finalShader.setFloat("exposure", exposure);
-        renderPlane();
-
+        renderQuad();
+/*
         std::cout << "hdr: " << (hdr ? "on" : "off") << "\n"
                   << "bloom: " << (bloom ? "on" : "off") << "\n"
                   << "\t| exposure: " << exposure << std::endl;
+*/
+        if (programState->ImGuiEnabled)
+            DrawImGui(programState);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -614,144 +731,46 @@ int main() {
     ImGui::DestroyContext();
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // -----------------------------------------------------------------
+    glDeleteVertexArrays(1, &planeVAO);
+    glDeleteVertexArrays(1, &cubeVAO);
+    glDeleteVertexArrays(1, &lightCubeVAO);
     glDeleteVertexArrays(1, &skyboxVAO);
+    glDeleteBuffers(1, &planeVBO);
+    glDeleteBuffers(1, &cubeVBO);
     glDeleteBuffers(1, &skyboxVBO);
 
     glfwTerminate();
     return 0;
 }
 
-// renderCube() renders a 1x1 3D cube in NDC.
-unsigned int cubeVAO = 0;
-unsigned int cubeVBO = 0;
-void renderCube() {
-    //initialize (if necessary)
-    if(cubeVAO == 0) {
-        //cubeVertices array has been copied from the project "rgLabyrinthHunt" of a colleague Ivan Basarab
-        //link to their project: https://github.com/matf-racunarska-grafika-galerija/rgLabyrinthHunt/blob/main/src/main.cpp
-
-        //Start of copied code-------------
-        float cubeVertices[] = {
-                // positions                     // normals                        // texture coords
-
-                // FRONT FACE
-                0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  0.0f,
-                -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
-                0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
-                0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
-                -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
-                -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  1.0f,
-
-                // BACK FACE
-                0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
-                -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
-                0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  0.0f,
-                0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
-                -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  1.0f,
-                -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
-
-                // LEFT FACE
-                -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
-                -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
-                -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
-                -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
-                -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
-                -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
-
-                // RIGHT FACE
-                0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
-                0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
-                0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
-                0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
-                0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
-                0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
-
-                // BOTTOM FACE
-                0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  1.0f,
-                0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
-                -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
-                0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
-                -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  0.0f,
-                -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
-
-                // TOP FACE
-                0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  1.0f,
-                -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f,
-                0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
-                0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
-                -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f,
-                -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  0.0f
+// renderQuad() renders a 1x1 XY quad in NDC
+// -----------------------------------------
+unsigned int quadVAO = 0;
+unsigned int quadVBO;
+void renderQuad()
+{
+    if (quadVAO == 0)
+    {
+        float quadVertices[] = {
+                // positions        // texture Coords
+                -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+                -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+                1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+                1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
         };
-        //--------------End of copied code
-
-        // first, configure the cube's VAO (and VBO)
-        glFrontFace(GL_CW);
-
-        glGenVertexArrays(1, &cubeVAO);
-        glGenBuffers(1, &cubeVBO);
-
-        glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
-
-        glBindVertexArray(cubeVAO);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+        // setup plane VAO
+        glGenVertexArrays(1, &quadVAO);
+        glGenBuffers(1, &quadVBO);
+        glBindVertexArray(quadVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
         glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
         glEnableVertexAttribArray(1);
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-        glEnableVertexAttribArray(2);
-
-        // second, configure the light's VAO (VBO stays the same; the cubeVertices are the same for the light object which is also a 3D cube)
-        unsigned int lightCubeVAO;
-        glGenVertexArrays(1, &lightCubeVAO);
-        glBindVertexArray(lightCubeVAO);
-
-        glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-        // note that we update the lamp's position attribute's stride to reflect the updated buffer data
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindVertexArray(0);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
     }
-    // render Cube
-    glBindVertexArray(cubeVAO);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-    glBindVertexArray(0);
-}
-
-//renderPlane() renders a 1x1 XY plane in NDC
-//-------------------------------------------
-unsigned int planeVAO = 0;
-unsigned int planeVBO = 0;
-void renderPlane(){
-    if(planeVAO == 0) {
-        float planeVertices[] = {
-                // positions                       // normals                       // texcoords
-                1.0f, -0.5f,  1.0f,  0.0f, 1.0f, 0.0f,      1.0f,  0.0f,
-                -1.0f, -0.5f,  1.0f,  0.0f, 1.0f, 0.0f,   0.0f,  0.0f,
-                -1.0f, -0.5f, -1.0f,  0.0f, 1.0f, 0.0f,   0.0f, 1.0f,
-
-                1.0f, -0.5f,  1.0f,  0.0f, 1.0f, 0.0f,  1.0f,  0.0f,
-                -1.0f, -0.5f, -1.0f,  0.0f, 1.0f, 0.0f,   0.0f, 1.0f,
-                1.0f, -0.5f, -1.0f,  0.0f, 1.0f, 0.0f,  1.0f, 1.0f
-        };
-        //setup plane VAO
-        glGenVertexArrays(1, &planeVAO);
-        glGenBuffers(1, &planeVBO);
-        glBindVertexArray(planeVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), planeVertices, GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-        glEnableVertexAttribArray(2);
-    }
-    glBindVertexArray(planeVAO);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, programState->floorTexture);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindVertexArray(0);
 }
 
