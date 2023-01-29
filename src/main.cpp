@@ -34,6 +34,15 @@ unsigned int loadCubemap(vector<std::string> faces);
 
 void renderQuad();
 
+void drawRoom(Shader ourShader, Model roomModel);
+void drawTree(Shader ourShader, Model treeModel);
+void drawPlane(Shader ourShader, unsigned int planeVAO, unsigned int floorTexture);
+void drawWindows(Shader blendingShader, glm::mat4 projection, glm::mat4 view, unsigned int transparentVAO,
+                 unsigned int transparentTexture, std::map<float, glm::vec3> sortedWindows);
+void drawLightCubes(Shader lightCubeShader, glm::mat4 projection, glm::mat4 view, unsigned int cubeVAO,
+                    glm::vec3 lightColor, const glm::vec3* lightPositions);
+void drawSkybox(Shader skyboxShader, glm::mat4 view, glm::mat4 projection, unsigned int skyboxVAO, unsigned int cubemapTexture);
+
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
@@ -76,6 +85,7 @@ struct ProgramState {
     float treeScale = 0.03;
     float planeScale = 10.0;
     float windowScale = 3.0f;
+    float treeAngle = 270.0f;
 
     PointLight pointLight;
     ProgramState()
@@ -361,7 +371,7 @@ int main() {
     skyboxShader.use();
     skyboxShader.setInt("skybox", 0);
 
-    unsigned int floorTexture = loadTexture(FileSystem::getPath("resources/textures/wood.png").c_str(), true);  // note that we're loading the texture as an SRGB texture
+    unsigned int floorTexture = loadTexture(FileSystem::getPath("resources/textures/floor.jpg").c_str(), true);  // note that we're loading the texture as an SRGB texture
     unsigned int transparentTexture = loadTexture(FileSystem::getPath("resources/textures/window.png").c_str(), true); // note that we're loading the texture as an SRGB texture
 
     // configure floating point framebuffer
@@ -619,90 +629,22 @@ int main() {
 
         //render the loaded models
         //room
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, programState->roomPosition);
-        model = glm::scale(model, glm::vec3(programState->roomScale));
-        ourShader.setMat4("model", model);
-        roomModel.Draw(ourShader);
+        drawRoom(ourShader, roomModel);
 
         //tree
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, programState->treePosition);
-        model = glm::scale(model, glm::vec3(programState->treeScale));
-        model = glm::rotate(model, glm::radians(270.0f), glm::vec3(1.0,0.0,0.0));
-        ourShader.setMat4("model", model);
-        treeModel.Draw(ourShader);
+        drawTree(ourShader, treeModel);
 
         //plane
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, programState->planePosition);
-        model = glm::scale(model, glm::vec3(programState->planeScale));
-        ourShader.setMat4("model", model);
-        glBindVertexArray(planeVAO);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, floorTexture);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        glBindVertexArray(0);
+        drawPlane(ourShader, planeVAO, floorTexture);
 
         //windows
-        blendingShader.use();
-        blendingShader.setMat4("projection", projection);
-        blendingShader.setMat4("view", view);
-        glBindVertexArray(transparentVAO);
-        glBindTexture(GL_TEXTURE_2D, transparentTexture);
-
-        for (std::map<float, glm::vec3>::reverse_iterator it = sortedWindows.rbegin(); it != sortedWindows.rend(); ++it)
-        {
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, it->second);
-            model = glm::scale(model, glm::vec3(programState->windowScale));
-            blendingShader.setMat4("model", model);
-            glDrawArrays(GL_TRIANGLES, 0, 6);
-        }
-        glBindVertexArray(0);
+        drawWindows(blendingShader, projection, view, transparentVAO, transparentTexture, sortedWindows);
 
         // also draw the lamp object(s)
-        glEnable(GL_CULL_FACE);
-
-        lightCubeShader.use();
-        lightCubeShader.setMat4("projection", projection);
-        lightCubeShader.setMat4("view", view);
-        glBindVertexArray(cubeVAO);
-
-        // we now draw as many light bulbs as we have point lights.
-        for (unsigned int i=0; i<4; i++)
-        {
-            calculateLightColor(i, &lightColor);
-            
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, lightPositions[i]);
-            model = glm::scale(model, glm::vec3(0.2f)); // Make it a smaller cube
-
-            lightCubeShader.setMat4("model", model);
-            lightCubeShader.setVec3("lightColor", lightColor);
-
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
-        glDisable(GL_CULL_FACE);
-        glBindVertexArray(0);
+        drawLightCubes(lightCubeShader, projection, view, cubeVAO, lightColor, lightPositions);
 
         // draw skybox as last
-        glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
-        glDepthMask(GL_FALSE);
-
-        skyboxShader.use();
-        view = glm::mat4(glm::mat3(programState->camera.GetViewMatrix())); // remove translation from the view matrix
-        skyboxShader.setMat4("view", view);
-        skyboxShader.setMat4("projection", projection);
-
-        // skybox cube
-        glBindVertexArray(skyboxVAO);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        glBindVertexArray(0);
-        glDepthMask(GL_TRUE);
-        glDepthFunc(GL_LESS); // set depth function back to default
+        drawSkybox(skyboxShader, view, projection, skyboxVAO, cubemapTexture);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -1026,4 +968,106 @@ unsigned int loadCubemap(vector<std::string> faces)
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
     return textureID;
+}
+
+void drawRoom(Shader ourShader, Model roomModel)
+{
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, programState->roomPosition);
+    model = glm::scale(model, glm::vec3(programState->roomScale));
+    ourShader.setMat4("model", model);
+    roomModel.Draw(ourShader);
+}
+
+void drawTree(Shader ourShader, Model treeModel)
+{
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, programState->treePosition);
+    model = glm::scale(model, glm::vec3(programState->treeScale));
+    model = glm::rotate(model, glm::radians(programState->treeAngle), glm::vec3(1.0,0.0,0.0));
+    ourShader.setMat4("model", model);
+    treeModel.Draw(ourShader);
+}
+
+void drawPlane(Shader ourShader, unsigned int planeVAO, unsigned int floorTexture)
+{
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, programState->planePosition);
+    model = glm::scale(model, glm::vec3(programState->planeScale));
+    ourShader.setMat4("model", model);
+    glBindVertexArray(planeVAO);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, floorTexture);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+}
+
+void drawWindows(Shader blendingShader, glm::mat4 projection, glm::mat4 view, unsigned int transparentVAO,
+                 unsigned int transparentTexture, std::map<float, glm::vec3> sortedWindows)
+{
+    blendingShader.use();
+    blendingShader.setMat4("projection", projection);
+    blendingShader.setMat4("view", view);
+    glBindVertexArray(transparentVAO);
+    glBindTexture(GL_TEXTURE_2D, transparentTexture);
+
+    glm::mat4 model = glm::mat4(1.0f);
+    for (std::map<float, glm::vec3>::reverse_iterator it = sortedWindows.rbegin(); it != sortedWindows.rend(); ++it)
+    {
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, it->second);
+        model = glm::scale(model, glm::vec3(programState->windowScale));
+        blendingShader.setMat4("model", model);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+    }
+    glBindVertexArray(0);
+}
+
+void drawLightCubes(Shader lightCubeShader, glm::mat4 projection, glm::mat4 view, unsigned int cubeVAO,
+                    glm::vec3 lightColor, const glm::vec3* lightPositions)
+{
+    glEnable(GL_CULL_FACE);
+
+    lightCubeShader.use();
+    lightCubeShader.setMat4("projection", projection);
+    lightCubeShader.setMat4("view", view);
+    glBindVertexArray(cubeVAO);
+
+    // we now draw as many light bulbs as we have point lights.
+    glm::mat4 model = glm::mat4(1.0f);
+    for (unsigned int i=0; i<4; i++)
+    {
+        calculateLightColor(i, &lightColor);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, lightPositions[i]);
+        model = glm::scale(model, glm::vec3(0.2f)); // Make it a smaller cube
+
+        lightCubeShader.setMat4("model", model);
+        lightCubeShader.setVec3("lightColor", lightColor);
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+    }
+    glDisable(GL_CULL_FACE);
+    glBindVertexArray(0);
+}
+
+void drawSkybox(Shader skyboxShader, glm::mat4 view, glm::mat4 projection, unsigned int skyboxVAO, unsigned int cubemapTexture)
+{
+    glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
+    glDepthMask(GL_FALSE);
+
+    skyboxShader.use();
+    view = glm::mat4(glm::mat3(programState->camera.GetViewMatrix())); // remove translation from the view matrix
+    skyboxShader.setMat4("view", view);
+    skyboxShader.setMat4("projection", projection);
+
+    // skybox cube
+    glBindVertexArray(skyboxVAO);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glBindVertexArray(0);
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LESS); // set depth function back to default
 }
