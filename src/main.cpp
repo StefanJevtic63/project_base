@@ -72,8 +72,6 @@ struct ProgramState {
     glm::vec3 roomPosition = glm::vec3(0.0f, -0.1f, 0.0f);
     glm::vec3 treePosition = glm::vec3(0.0f);
     glm::vec3 planePosition = glm::vec3(0.0f, 5.0f, 0.0f);
-    glm::vec3 windowPosition = glm::vec3(-7.0f, 5.0f, -9.9f);
-    glm::vec3 windowPosition2 = glm::vec3(4.5f, 5.0f, -9.9f);
     float roomScale = 10.0;
     float treeScale = 0.03;
     float planeScale = 10.0;
@@ -314,6 +312,14 @@ int main() {
             glm::vec3( -2.0f,  1.0f, -2.0f)
     };
 
+    // transparent window locations
+    // --------------------------------
+    vector<glm::vec3> windows
+            {
+                glm::vec3(-7.0f, 5.0f, -9.9f),
+                glm::vec3(4.5f, 5.0f, -9.9f)
+            };
+
     // configure global opengl state
     // -----------------------------
     glEnable(GL_DEPTH_TEST);
@@ -423,7 +429,7 @@ int main() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-    //glBindVertexArray(0);
+    glBindVertexArray(0);
 
     // plane VAO
     unsigned int planeVAO, planeVBO;
@@ -438,7 +444,7 @@ int main() {
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
     glEnableVertexAttribArray(2);
-    //glBindVertexArray(0);
+    glBindVertexArray(0);
 
     //configure the cube's VAO (and VBO)
     glFrontFace(GL_CW);
@@ -468,7 +474,7 @@ int main() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    //glBindVertexArray(0);
+    glBindVertexArray(0);
 
     // skybox VAO
     unsigned int skyboxVAO, skyboxVBO;
@@ -479,6 +485,7 @@ int main() {
     glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glBindVertexArray(0);
 
     //shader configuration
     //--------------------
@@ -495,6 +502,7 @@ int main() {
     bloom_finalShader.use();
     bloom_finalShader.setInt("scene", 0);
     bloom_finalShader.setInt("bloomBlur", 1);
+    bloom_finalShader.setFloat("bloomThreshold", 0.5f);
 
     glm::vec3 lightColor;
 
@@ -511,6 +519,15 @@ int main() {
         // input
         // -----
         processInput(window);
+
+        // sort the transparent windows before rendering
+        // ---------------------------------------------
+        std::map<float, glm::vec3> sortedWindows;
+        for (unsigned int i = 0; i < windows.size(); i++)
+        {
+            float distance = glm::length(programState->camera.Position - windows[i]);
+            sortedWindows[distance] = windows[i];
+        }
 
         // render
         // ------
@@ -625,6 +642,7 @@ int main() {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, floorTexture);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindVertexArray(0);
 
         //windows
         blendingShader.use();
@@ -633,41 +651,45 @@ int main() {
         glBindVertexArray(transparentVAO);
         glBindTexture(GL_TEXTURE_2D, transparentTexture);
 
-        for(unsigned int i=0; i<2; i++) {
+        for (std::map<float, glm::vec3>::reverse_iterator it = sortedWindows.rbegin(); it != sortedWindows.rend(); ++it)
+        {
             model = glm::mat4(1.0f);
-            if(i == 0)
-                model = glm::translate(model, programState->windowPosition);
-            else
-                model = glm::translate(model, programState->windowPosition2);
+            model = glm::translate(model, it->second);
             model = glm::scale(model, glm::vec3(programState->windowScale));
             blendingShader.setMat4("model", model);
             glDrawArrays(GL_TRIANGLES, 0, 6);
         }
+        glBindVertexArray(0);
 
         // also draw the lamp object(s)
-        lightCubeShader.use();
         glEnable(GL_CULL_FACE);
 
+        lightCubeShader.use();
         lightCubeShader.setMat4("projection", projection);
         lightCubeShader.setMat4("view", view);
+        glBindVertexArray(cubeVAO);
 
         // we now draw as many light bulbs as we have point lights.
         for (unsigned int i=0; i<4; i++)
         {
             calculateLightColor(i, &lightColor);
-            lightCubeShader.setVec3("lightColor", lightColor);
-
+            
             model = glm::mat4(1.0f);
             model = glm::translate(model, lightPositions[i]);
             model = glm::scale(model, glm::vec3(0.2f)); // Make it a smaller cube
 
             lightCubeShader.setMat4("model", model);
+            lightCubeShader.setVec3("lightColor", lightColor);
+
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
         glDisable(GL_CULL_FACE);
+        glBindVertexArray(0);
 
         // draw skybox as last
         glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
+        glDepthMask(GL_FALSE);
+
         skyboxShader.use();
         view = glm::mat4(glm::mat3(programState->camera.GetViewMatrix())); // remove translation from the view matrix
         skyboxShader.setMat4("view", view);
@@ -679,6 +701,7 @@ int main() {
         glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
         glDrawArrays(GL_TRIANGLES, 0, 36);
         glBindVertexArray(0);
+        glDepthMask(GL_TRUE);
         glDepthFunc(GL_LESS); // set depth function back to default
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
