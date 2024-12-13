@@ -1,13 +1,7 @@
-# Rotating_lights
+# Rotating Lights
 
 A beautiful Christmas tree with multiple, color changing lights that rotate around it stays inside a cozy, dimly lit room. <br>
 [Demo video](https://youtu.be/cVc-tuZsHj8)
-
-# Authors
-
-[JoeyDeVries](https://github.com/JoeyDeVries) - significant amount of code - [LearnOpenGL](https://github.com/JoeyDeVries/LearnOpenGL)  
-[spaske00](https://github.com/spaske00), teaching assistant - [Project base](https://github.com/matf-racunarska-grafika/project_base/)     
-[StefanJevtic63](https://github.com/StefanJevtic63)
 
 # Keyboard instructions:
 
